@@ -17,6 +17,12 @@ import os
 import re
 import subprocess
 
+if platform_.name == "windows":
+    from rez.utils import uncpath
+    uncpath_available = True
+else:
+    uncpath_available = False
+
 
 class CMD(Shell):
     # For reference, the ss64 web page provides useful documentation on builtin
@@ -285,6 +291,14 @@ class CMD(Shell):
             return path
 
         path = os.path.normpath(path)
+
+        unc, unc_path = os.path.splitdrive(path)
+        if unc:
+            if unc.startswith("\\\\"):
+                drive = to_mapped_drive(path)
+                if drive:
+                    return drive + slashify(unc_path)
+
         normalized_path = path.replace("\\", "/")
 
         if path != normalized_path:
@@ -395,3 +409,41 @@ class CMD(Shell):
 def register_plugin():
     if platform_.name == "windows":
         return CMD
+
+
+def slashify(path, unc=False):
+    """Ensures path only contains forward slashes.
+
+    Args:
+        path (str): Path to convert.
+        unc (bool): Path is a unc path
+
+    Returns:
+        str: Path with slashes normalized.
+    """
+    # Remove double backslashes and dots
+    path = os.path.normpath(path)
+    # Normalize slashes
+    path = path.replace("\\", "/")
+    # Remove double slashes
+    if not unc:
+        path = re.sub(r'/{2,}', '/', path)
+    return path
+
+
+def to_mapped_drive(path):
+    r"""Convert a UNC path to an NT drive if possible.
+
+    (eg) '\\\\server\\share\\folder' -> 'X:'
+
+    Args:
+        path (str): UNC path.
+
+    Returns:
+        str: Drive mapped to UNC, if any.
+    """
+    if not uncpath_available:
+        return
+    unc, _ = os.path.splitdrive(path)
+    if unc and unc.startswith("\\\\"):
+        return uncpath.to_drive(unc)
