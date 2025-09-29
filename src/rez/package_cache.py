@@ -138,6 +138,7 @@ class PackageCache(object):
         guarantee that a partially-copied variant payload is never able to be
         used:
 
+        0. Check if payload is zipped in the format "name_version.zip";
         1. The hash dir (eg '/<cache_dir>/foo/1.0.0/af8d') is created;
         2. A file lock mutex ('/<cache_dir>/.lock') is acquired;
         3. The file '/<cache_dir>/foo/1.0.0/af8d/.copying-a' (or -b, -c etc) is
@@ -261,6 +262,12 @@ class PackageCache(object):
                     )
             return (rootpath, status)
 
+        # 0.
+        is_zipped = False
+        payload_zip_file = "{}/{}_{}.zip".format(variant.root,variant.name,str(variant.version))
+        if os.path.exists(payload_zip_file):
+            is_zipped = True
+
         # 1.
         path = self._get_hash_path(variant)
         safe_makedirs(path)
@@ -326,7 +333,12 @@ class PackageCache(object):
         th.start()
 
         try:
-            shutil.copytree(variant_root, rootpath)
+            if is_zipped:
+                import zipfile
+                with zipfile.ZipFile(payload_zip_file, 'r') as zip_ref:
+                    zip_ref.extractall(rootpath)
+            else:
+                shutil.copytree(variant_root, rootpath)
         finally:
             still_copying = False
 
