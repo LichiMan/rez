@@ -334,9 +334,12 @@ class PackageCache(object):
 
         try:
             if is_zipped:
-                import zipfile
-                with zipfile.ZipFile(payload_zip_file, 'r') as zip_ref:
-                    zip_ref.extractall(rootpath)
+                if platform.system() == "Windows":
+                    import zipfile
+                    with zipfile.ZipFile(payload_zip_file, 'r') as zip_ref:
+                        zip_ref.extractall(rootpath)
+                else:
+                    subprocess.run(["7z", "x", payload_zip_file, "-o" + rootpath], stdout=subprocess.DEVNULL, stderr=subprocess.STDOUT)
             else:
                 shutil.copytree(variant_root, rootpath)
         finally:
